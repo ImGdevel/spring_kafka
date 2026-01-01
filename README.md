@@ -26,6 +26,35 @@ curl -X POST http://localhost:8080/api/messages \
 Consumed message: hello kafka
 ```
 
+## Manual Test (docker compose)
+
+1) Start Kafka
+```
+docker compose up -d
+```
+
+2) Run the app
+```
+./gradlew bootRun
+```
+
+3) Send a message
+```
+curl -X POST http://localhost:8080/api/messages \
+  -H "Content-Type: application/json" \
+  -d '{"message":"manual test"}'
+```
+
+4) Check logs for:
+```
+Consumed message: manual test
+```
+
+5) Stop Kafka when done
+```
+docker compose down -v
+```
+
 ## Configuration
 - Kafka bootstrap server: `localhost:9092`
 - Topic: `study-topic`
