@@ -15,7 +15,14 @@
 
 ## 3) Producer(발행자)
 `src/main/java/com/study/kafka/web/MessageController.java`
-- `POST /api/messages` 요청을 받으면 `KafkaTemplate`로 토픽에 value를 전송한다.
+- `POST /api/messages` 요청을 받으면 `MessagePublisher`(애플리케이션 인터페이스)로 발행을 위임한다.
+
+`src/main/java/com/study/kafka/application/MessagePublisher.java`
+- “메시지를 발행한다”는 유스케이스 인터페이스다(컨트롤러가 Infra에 직접 의존하지 않게 함).
+
+`src/main/java/com/study/kafka/infra/kafka/KafkaMessagePublisher.java`
+- `MessagePublisher`의 Kafka 구현체다.
+- 내부에서 `KafkaTemplate`로 토픽에 전송한다.
 - 요청에 `key`가 있으면 `send(topic, key, message)`로 보내고, 없으면 `send(topic, message)`로 보낸다.
 
 ## 4) Consumer(수신자)
