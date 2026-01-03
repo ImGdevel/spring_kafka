@@ -9,7 +9,7 @@
 - `app.kafka.topic: study-topic`
 
 ## 2) 토픽 생성(애플리케이션 시작 시)
-`infra-mq/src/main/java/com/study/kafka/config/KafkaConfig.java`
+`com.study.kafka.config.KafkaConfig` (infra-message-queue 모듈)
 - `NewTopic` 빈을 등록해서 토픽을 “있으면 그대로, 없으면 생성”하도록 한다.
 - 로컬 단일 브로커 기준으로 `partitions=1`, `replicas=1`로 되어 있다.
 - `app.mq.type=kafka`일 때만 빈이 활성화된다(기본값이기도 함).
@@ -18,10 +18,10 @@
 `kafka-study/src/main/java/com/study/kafka/web/MessageController.java`
 - `POST /api/messages` 요청을 받으면 `MessagePublisher`(애플리케이션 인터페이스)로 발행을 위임한다.
 
-`infra-mq/src/main/java/com/study/messaging/MessagePublisher.java`
+`com.study.messaging.MessagePublisher` (infra-message-queue 모듈)
 - “메시지를 발행한다”는 유스케이스 인터페이스다(컨트롤러가 Infra에 직접 의존하지 않게 함). 다른 메시지 브로커 구현으로 교체할 때 이 인터페이스를 공통으로 쓴다.
 
-`infra-mq/src/main/java/com/study/kafka/infra/kafka/KafkaMessagePublisher.java`
+`com.study.kafka.infra.kafka.KafkaMessagePublisher` (infra-message-queue 모듈)
 - `MessagePublisher`의 Kafka 구현체다.
 - 내부에서 `KafkaTemplate`로 토픽에 전송한다.
 - 요청에 `key`가 있으면 `send(topic, key, message)`로 보내고, 없으면 `send(topic, message)`로 보낸다.

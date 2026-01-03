@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-	implementation project(':infra-mq')
+	implementation project(':infra-message-queue')
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.kafka:spring-kafka'
 
