@@ -1,6 +1,6 @@
 package com.study.kafka.infra.kafka;
 
-import com.study.kafka.application.MessagePublisher;
+import com.study.messaging.MessagePublisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -29,4 +29,3 @@ public class KafkaMessagePublisher implements MessagePublisher {
 		}
 	}
 }
-

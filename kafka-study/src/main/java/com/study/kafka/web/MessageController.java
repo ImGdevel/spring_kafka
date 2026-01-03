@@ -1,6 +1,6 @@
 package com.study.kafka.web;
 
-import com.study.kafka.application.MessagePublisher;
+import com.study.messaging.MessagePublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

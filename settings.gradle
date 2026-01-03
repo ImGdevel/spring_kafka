@@ -1,5 +1,5 @@
 rootProject.name = 'kafka'
 
-include 'kafka-infra'
+include 'infra-mq'
 include 'kafka-study'
 include 'kafka-redis-compare'
