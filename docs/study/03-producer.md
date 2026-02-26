@@ -25,10 +25,28 @@ Producer는 Kafka로 메시지(레코드)를 보내는 쪽이다.
 
 > 정확히 한 번(Exactly-once)은 “프로듀서 멱등 + 트랜잭션 + 컨슈머 쪽 처리/커밋”까지 함께 설계해야 한다.
 
-### 3) 배치/압축
-Producer는 성능을 위해 여러 레코드를 모아(batch) 보내기도 한다.
-- 장점: 처리량 증가
-- 단점: 지연(latency) 증가 가능
+### 3) 배치/압축 설정
+
+Producer는 성능을 위해 여러 레코드를 모아(batch) 보낸다. 핵심 설정 4가지:
+
+| 설정 | 기본값 | 역할 |
+|---|---|---|
+| `batch.size` | 16384 (16 KB) | 배치 최대 크기. 이 크기가 차면 즉시 전송 |
+| `linger.ms` | 0 | 배치를 채우기 위해 기다리는 최대 시간(ms). 0이면 즉시 전송 |
+| `buffer.memory` | 33554432 (32 MB) | Producer가 브로커로 보내기 전 버퍼 총 크기 |
+| `compression.type` | none | `gzip` / `snappy` / `lz4` / `zstd` 중 선택 |
+
+**`batch.size` + `linger.ms` 조합이 핵심:**
+- `linger.ms=0`(기본): 레코드가 들어오면 바로 전송 → 낮은 지연, 낮은 처리량
+- `linger.ms=10`: 10ms 기다렸다가 모아서 전송 → 배치 효율 증가, 지연 소폭 증가
+
+**압축(`compression.type`):**
+- 배치 단위로 압축된다. 배치가 클수록 압축률이 높아진다.
+- CPU 사용량 증가 ↔ 네트워크·브로커 저장 비용 감소 트레이드오프
+- `lz4` / `snappy`: CPU 부담 적음, 적당한 압축률 (실무에서 자주 쓰임)
+- `zstd`: 높은 압축률, CPU 부담 있음
+
+> 자세한 성능 튜닝은 [14. 성능 튜닝](14-performance-tuning.md)에서 다룬다.
 
 ## 이 프로젝트에서 Producer는 어디인가?
 - HTTP 요청을 받아서 Kafka로 보내는 부분: `kafka-study/src/main/java/com/study/kafka/web/MessageController.java`

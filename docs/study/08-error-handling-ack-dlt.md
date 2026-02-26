@@ -64,7 +64,83 @@ curl -X POST http://localhost:8080/api/messages \
 - 재시도 + DLT를 쓰면 “최소 1번 + 실패 기록 보존” 패턴을 구현할 수 있다.
 - 운영에서는 DLT 모니터링/재처리(역컨슘 or ETL) 체계를 함께 두어야 한다.
 
-## 7) 추가로 실험해볼 것
-- `spring.kafka.listener.ack-mode=MANUAL_IMMEDIATE`로 바꾼 뒤, 리스너에서 `acknowledge()` 호출/생략에 따라 중복/유실을 비교
+## 7) MANUAL_IMMEDIATE AckMode 구현 예시
+
+`spring.kafka.listener.ack-mode=MANUAL_IMMEDIATE`로 설정하면 리스너가 커밋 시점을 직접 제어한다.
+
+### application.yaml 설정
+```yaml
+spring:
+  kafka:
+    listener:
+      ack-mode: MANUAL_IMMEDIATE
+```
+
+### 리스너 구현 (Acknowledgment 파라미터 추가)
+```java
+@KafkaListener(topics = “${app.kafka.topic}”, groupId = “${spring.kafka.consumer.group-id}”)
+public void listen(String message, Acknowledgment acknowledgment) {
+    try {
+        // 비즈니스 처리
+        process(message);
+
+        // 처리 성공 후 커밋
+        acknowledgment.acknowledge();
+
+    } catch (RecoverableException e) {
+        // 복구 가능한 예외: 커밋하지 않음 → 재처리
+        log.warn(“처리 실패, 재시도 대기: {}”, message);
+
+    } catch (Exception e) {
+        // 복구 불가능한 예외: 건너뛰거나 DLT로 보내고 커밋
+        log.error(“처리 불가 메시지, 스킵: {}”, message);
+        acknowledgment.acknowledge(); // 유실을 감수하고 진행
+    }
+}
+```
+
+### MANUAL vs MANUAL_IMMEDIATE 차이
+| AckMode | 커밋 타이밍 |
+|---|---|
+| `MANUAL` | `acknowledge()` 호출 → 다음 `poll()` 또는 배치 끝에 커밋 |
+| `MANUAL_IMMEDIATE` | `acknowledge()` 호출 즉시 커밋 |
+
+**MANUAL_IMMEDIATE**가 더 엄격한 제어가 필요할 때 사용한다.
+처리 도중 장애가 나도 커밋된 메시지는 재처리되지 않는다.
+
+> AckMode 전체 비교는 [11. 오프셋 커밋 전략](11-offset-commit-strategies.md)에서 다룬다.
+
+## 8) @RetryableTopic — Non-blocking 재시도 (Spring Kafka 2.7+)
+
+현재 구현한 `DefaultErrorHandler` 방식은 재시도 중 메인 컨슈머 스레드가 **블로킹**된다.
+`@RetryableTopic`은 재시도 메시지를 별도 토픽으로 라우팅해서 메인 컨슈머를 막지 않는다.
+
+### 비교
+
+| | `DefaultErrorHandler` | `@RetryableTopic` |
+|---|---|---|
+| 재시도 중 메인 컨슈머 | **블로킹** (파티션 소비 정지) | **Non-blocking** (메인 파티션 계속 소비) |
+| 재시도 토픽 | 없음 | `topic-retry-0`, `topic-retry-1` 자동 생성 |
+| DLT 연결 | 수동 설정 (`DeadLetterPublishingRecoverer`) | 자동 연결 |
+| 코드 위치 | `@Configuration` 빈 | `@KafkaListener` 메서드에 `@RetryableTopic` 추가 |
+
+### 적용 예시
+
+```java
+@RetryableTopic(
+    attempts = “3”,
+    backoff = @Backoff(delay = 1000, multiplier = 2.0),
+    dltStrategy = DltStrategy.FAIL_ON_ERROR
+)
+@KafkaListener(topics = “${app.kafka.topic}”)
+public void listen(MessagePayload payload) {
+    // “fail” 포함 시 예외 → retry-0 → retry-1 → DLT 순으로 자동 라우팅
+}
+```
+
+> 이 프로젝트에서는 `DefaultErrorHandler` 방식으로 DLT 라우팅을 직접 구현하고 있다.
+> 처리량이 중요한 운영 환경에서는 `@RetryableTopic` 방식이 컨슈머 지연을 줄이는 데 유리하다.
+
+## 9) 추가로 실험해볼 것
 - `FixedBackOff`를 바꿔서 재시도 횟수/지연 체감하기
 - DLT에 쌓인 레코드를 별도 컨슈머 앱에서 읽어 “재처리” 플로우 만들어보기
