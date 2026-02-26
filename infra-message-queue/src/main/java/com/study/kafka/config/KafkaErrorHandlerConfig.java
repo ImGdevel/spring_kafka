@@ -17,7 +17,7 @@ public class KafkaErrorHandlerConfig {
 
 	@Bean
 	CommonErrorHandler commonErrorHandler(
-		KafkaTemplate<String, String> kafkaTemplate,
+		KafkaTemplate<Object, Object> kafkaTemplate,
 		@Value("${app.kafka.dlt-topic}") String dltTopic
 	) {
 		DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
@@ -26,5 +26,11 @@ public class KafkaErrorHandlerConfig {
 		);
 		// 1회 재시도 후 DLT 전송 (처음 실패 + 재시도 1회 = 총 2회 처리)
 		return new DefaultErrorHandler(recoverer, new FixedBackOff(0L, 1));
+
+		// 실무 패턴 예시 (지수 백오프): 재시도 간격을 점점 늘려 다운스트림 부하를 완화한다.
+		// org.springframework.util.backoff.ExponentialBackOff backOff =
+		//     new org.springframework.util.backoff.ExponentialBackOff(1000L, 2.0);
+		// backOff.setMaxAttempts(3); // 1초 → 2초 → 4초 간격으로 최대 3회 재시도
+		// return new DefaultErrorHandler(recoverer, backOff);
 	}
 }
