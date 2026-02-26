@@ -8,6 +8,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.study.messaging.dto.MessagePayload;
 import org.junit.jupiter.api.Test;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +31,7 @@ import org.springframework.kafka.test.context.EmbeddedKafka;
 class KafkaMessagingIntegrationTest {
 
 	@Autowired
-	private KafkaTemplate<String, String> kafkaTemplate;
+	private KafkaTemplate<Object, Object> kafkaTemplate;
 
 	@Autowired
 	private TestListener testListener;
@@ -38,19 +39,19 @@ class KafkaMessagingIntegrationTest {
 	@Test
 	void sendsAndReceivesMessage() throws Exception {
 		testListener.reset(1);
-		kafkaTemplate.send("test-topic", "hello kafka");
-		List<ConsumerRecord<String, String>> records = testListener.awaitRecords(1);
+		kafkaTemplate.executeInTransaction(ops -> ops.send("test-topic", new MessagePayload("hello kafka")));
+		List<ConsumerRecord<String, MessagePayload>> records = testListener.awaitRecords(1);
 		assertThat(records).hasSize(1);
-		assertThat(records.get(0).value()).isEqualTo("hello kafka");
+		assertThat(records.get(0).value().message()).isEqualTo("hello kafka");
 	}
 
 	@Test
 	void sameKeyGoesToSamePartitionAndKeepsOrder() throws Exception {
 		testListener.reset(2);
-		kafkaTemplate.send("test-topic", "user-1", "m1");
-		kafkaTemplate.send("test-topic", "user-1", "m2");
+		kafkaTemplate.executeInTransaction(ops -> ops.send("test-topic", "user-1", new MessagePayload("m1")));
+		kafkaTemplate.executeInTransaction(ops -> ops.send("test-topic", "user-1", new MessagePayload("m2")));
 
-		List<ConsumerRecord<String, String>> records = testListener.awaitRecords(2);
+		List<ConsumerRecord<String, MessagePayload>> records = testListener.awaitRecords(2);
 		assertThat(records).hasSize(2);
 		assertThat(records.get(0).key()).isEqualTo("user-1");
 		assertThat(records.get(1).key()).isEqualTo("user-1");
@@ -61,11 +62,11 @@ class KafkaMessagingIntegrationTest {
 	@Test
 	void failureIsSentToDltAfterRetry() throws Exception {
 		testListener.reset(0);
-		kafkaTemplate.send("test-topic", "will fail");
+		kafkaTemplate.executeInTransaction(ops -> ops.send("test-topic", new MessagePayload("will fail")));
 
-		List<ConsumerRecord<String, String>> dltRecords = testListener.awaitDltRecords(1);
+		List<ConsumerRecord<String, MessagePayload>> dltRecords = testListener.awaitDltRecords(1);
 		assertThat(dltRecords).hasSize(1);
-		assertThat(dltRecords.get(0).value()).isEqualTo("will fail");
+		assertThat(dltRecords.get(0).value().message()).isEqualTo("will fail");
 		assertThat(dltRecords.get(0).topic()).isEqualTo("test-topic-dlt");
 	}
 
@@ -82,17 +83,17 @@ class KafkaMessagingIntegrationTest {
 
 		private final AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(0));
 		private final AtomicReference<CountDownLatch> dltLatch = new AtomicReference<>(new CountDownLatch(0));
-		private final List<ConsumerRecord<String, String>> records = new ArrayList<>();
-		private final List<ConsumerRecord<String, String>> dltRecords = new ArrayList<>();
+		private final List<ConsumerRecord<String, MessagePayload>> records = new ArrayList<>();
+		private final List<ConsumerRecord<String, MessagePayload>> dltRecords = new ArrayList<>();
 
 		@KafkaListener(topics = "${app.kafka.topic}", groupId = "test-group")
-		synchronized void listen(ConsumerRecord<String, String> record) {
+		synchronized void listen(ConsumerRecord<String, MessagePayload> record) {
 			records.add(record);
 			latch.get().countDown();
 		}
 
 		@KafkaListener(topics = "${app.kafka.dlt-topic}", groupId = "test-group-dlt")
-		synchronized void listenDlt(ConsumerRecord<String, String> record) {
+		synchronized void listenDlt(ConsumerRecord<String, MessagePayload> record) {
 			dltRecords.add(record);
 			dltLatch.get().countDown();
 		}
@@ -104,7 +105,7 @@ class KafkaMessagingIntegrationTest {
 			dltLatch.set(new CountDownLatch(0));
 		}
 
-		List<ConsumerRecord<String, String>> awaitRecords(int expectedCount) throws InterruptedException {
+		List<ConsumerRecord<String, MessagePayload>> awaitRecords(int expectedCount) throws InterruptedException {
 			boolean completed = latch.get().await(10, TimeUnit.SECONDS);
 			if (!completed) {
 				return List.of();
@@ -114,7 +115,7 @@ class KafkaMessagingIntegrationTest {
 			}
 		}
 
-		List<ConsumerRecord<String, String>> awaitDltRecords(int expectedCount) throws InterruptedException {
+		List<ConsumerRecord<String, MessagePayload>> awaitDltRecords(int expectedCount) throws InterruptedException {
 			dltLatch.set(new CountDownLatch(expectedCount));
 			boolean completed = dltLatch.get().await(10, TimeUnit.SECONDS);
 			if (!completed) {
