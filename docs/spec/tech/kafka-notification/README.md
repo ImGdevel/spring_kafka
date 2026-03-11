@@ -33,24 +33,29 @@ v1 범위:
   - 외부 요청을 받는 Spring Boot 앱
   - REST API 제공
   - 알림 요청을 Kafka 토픽으로 발행
+  - 세부 문서: [notification-producer-app](../../../../kafka-notification/notification-producer-app/README.md)
 - `kafka-notification:notification-worker-app`
   - Kafka consumer 역할의 Spring Boot 앱
   - 알림 요청을 소비
   - 채널별 전송, 재시도, 실패 이벤트 발행, DLT 처리를 담당
+  - 세부 문서: [notification-worker-app](../../../../kafka-notification/notification-worker-app/README.md)
 
 라이브러리 모듈:
 
 - `kafka-notification:notification-domain`
   - 순수 도메인 모델과 전송 계약의 중심
   - `NotificationChannel`, `NotificationTarget`, `NotificationContent`, `NotificationTemplate`, `NotificationSendResult`, `NotificationSender`
+  - 세부 문서: [notification-domain](../../../../kafka-notification/notification-domain/README.md)
 - `kafka-notification:notification-contract`
   - Producer와 Worker가 Kafka로 주고받는 메시지 계약
   - `NotificationRequestedEvent`, `NotificationSentEvent`, `NotificationFailedEvent`
   - `NotificationTopics`, `NotificationHeaderNames`
+  - 세부 문서: [notification-contract](../../../../kafka-notification/notification-contract/README.md)
 - `kafka-notification:notification-provider-sandbox`
   - 실습용 가짜 Provider 구현
   - `SandboxEmailSender`, `SandboxSlackSender`
   - 성공, 실패, 지연 시나리오를 강제로 재현
+  - 세부 문서: [notification-provider-sandbox](../../../../kafka-notification/notification-provider-sandbox/README.md)
 
 중요한 점:
 
