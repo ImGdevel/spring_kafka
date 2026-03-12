@@ -33,6 +33,7 @@
 클러스터링 문서:
 
 - [Kafka 클러스터링 설계](../../kafka-clustering.md) — 3-브로커 KRaft 구성, ISR, 리더 선출, 순서 보장
+- [ZooKeeper vs KRaft](../../kafka-zookeeper-vs-kraft.md) — 역할, 이벤트 영속성, 차이점
 
 EOS 개선 이력:
 
