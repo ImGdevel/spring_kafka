@@ -231,7 +231,20 @@ curl -X POST http://localhost:8082/api/notifications \
 
 ---
 
-## 8. 예상 이슈와 해결
+## 8. 추가 고려사항
+
+클러스터 구성 이후 추가로 고려해야 할 문제들. 각 항목별 상세 문서 참조.
+
+| 문제 | 발생 조건 | 코드 적용 여부 | 상세 문서 |
+|---|---|---|---|
+| DLT 파티션 라우팅 | 원본 토픽과 DLT 토픽 파티션 수 불일치 | 적용 (`-1` 라우팅) | [kafka-clustering-dlt-partition.md](./kafka-clustering-dlt-partition.md) |
+| 컨슈머 리밸런싱 | 인스턴스 추가/제거/재시작 시 | 적용 (CooperativeStickyAssignor) | [kafka-clustering-rebalancing.md](./kafka-clustering-rebalancing.md) |
+| 프로듀서 Epoch 충돌 | 동일 transactional.id 다중 인스턴스 | 문서화만 (현재 단일 인스턴스) | [kafka-clustering-producer-epoch.md](./kafka-clustering-producer-epoch.md) |
+| 컨슈머 Lag 모니터링 | 처리 속도 < 발행 속도 누적 | 문서화만 (수동 명령 제공) | [kafka-clustering-consumer-lag.md](./kafka-clustering-consumer-lag.md) |
+
+---
+
+## 9. 예상 이슈와 해결
 
 | 이슈 | 원인 | 해결 |
 |---|---|---|
