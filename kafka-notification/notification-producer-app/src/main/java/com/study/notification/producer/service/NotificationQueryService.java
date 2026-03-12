@@ -28,11 +28,18 @@ public class NotificationQueryService {
 
 	private final NotificationRequestRepository requestRepository;
 
-	@Transactional
+	@Transactional("transactionManager")
 	public void markSent(NotificationSentEvent event) {
 		requestRepository.findById(event.notificationId())
 			.ifPresentOrElse(
 				entity -> {
+					// 개선 2: at-least-once 소비로 인한 재전달 시 멱등 처리.
+					// ACCEPTED 상태일 때만 갱신하여 불필요한 중복 UPDATE를 방지한다.
+					if (!"ACCEPTED".equals(entity.getStatus())) {
+						log.debug("SENT 갱신 스킵: 이미 최종 상태 (notificationId={}, status={})",
+							event.notificationId(), entity.getStatus());
+						return;
+					}
 					entity.markSent(event.provider());
 					log.info("알림 상태 갱신 → SENT: notificationId={}, provider={}", event.notificationId(), event.provider());
 				},
@@ -40,11 +47,18 @@ public class NotificationQueryService {
 			);
 	}
 
-	@Transactional
+	@Transactional("transactionManager")
 	public void markFailed(NotificationFailedEvent event) {
 		requestRepository.findById(event.notificationId())
 			.ifPresentOrElse(
 				entity -> {
+					// 개선 2: at-least-once 소비로 인한 재전달 시 멱등 처리.
+					// ACCEPTED 상태일 때만 갱신하여 불필요한 중복 UPDATE를 방지한다.
+					if (!"ACCEPTED".equals(entity.getStatus())) {
+						log.debug("FAILED 갱신 스킵: 이미 최종 상태 (notificationId={}, status={})",
+							event.notificationId(), entity.getStatus());
+						return;
+					}
 					entity.markFailed(event.reason());
 					log.info("알림 상태 갱신 → FAILED: notificationId={}, reason={}", event.notificationId(), event.reason());
 				},
@@ -52,7 +66,7 @@ public class NotificationQueryService {
 			);
 	}
 
-	@Transactional(readOnly = true)
+	@Transactional(value = "transactionManager", readOnly = true)
 	public NotificationStatusResponse get(String notificationId) {
 		NotificationRequestEntity entity = requestRepository.findById(notificationId)
 			.orElseThrow(() -> new ResponseStatusException(
