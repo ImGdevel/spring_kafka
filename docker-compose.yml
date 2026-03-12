@@ -102,6 +102,40 @@ services:
       timeout: 10s
       retries: 15
 
+  notification-producer-db:
+    profiles: ["notification"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notification_producer
+      POSTGRES_USER: notification
+      POSTGRES_PASSWORD: notification
+    ports:
+      - "5432:5432"
+    volumes:
+      - notification_producer_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification -d notification_producer"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  notification-worker-db:
+    profiles: ["notification"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notification_worker
+      POSTGRES_USER: notification
+      POSTGRES_PASSWORD: notification
+    ports:
+      - "5433:5432"
+    volumes:
+      - notification_worker_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification -d notification_worker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   notification-producer-app:
     profiles: ["notification"]
     build:
@@ -113,6 +147,9 @@ services:
       # 3개 브로커 모두 등록: 1개 다운 시에도 bootstrap 성공
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-1:29092,kafka-2:29092,kafka-3:29092
       SERVER_PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://notification-producer-db:5432/notification_producer
+      SPRING_DATASOURCE_USERNAME: notification
+      SPRING_DATASOURCE_PASSWORD: notification
     ports:
       - "8082:8082"
     depends_on:
@@ -121,6 +158,8 @@ services:
       kafka-2:
         condition: service_healthy
       kafka-3:
+        condition: service_healthy
+      notification-producer-db:
         condition: service_healthy
     restart: on-failure
 
@@ -134,6 +173,9 @@ services:
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-1:29092,kafka-2:29092,kafka-3:29092
       APP_NOTIFICATION_RETRY_BACKOFF_MILLIS: 100
+      SPRING_DATASOURCE_URL: jdbc:postgresql://notification-worker-db:5432/notification_worker
+      SPRING_DATASOURCE_USERNAME: notification
+      SPRING_DATASOURCE_PASSWORD: notification
     depends_on:
       kafka-1:
         condition: service_healthy
@@ -141,9 +183,13 @@ services:
         condition: service_healthy
       kafka-3:
         condition: service_healthy
+      notification-worker-db:
+        condition: service_healthy
     restart: on-failure
 
 volumes:
   kafka_1_data:
   kafka_2_data:
   kafka_3_data:
+  notification_producer_db_data:
+  notification_worker_db_data:
